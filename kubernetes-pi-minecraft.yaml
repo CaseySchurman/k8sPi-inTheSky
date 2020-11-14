@@ -1,0 +1,44 @@
+# Ansible playbook for Minecraft Server deployment on a Kubernetes cluster
+#
+# This playbook assumes the following:
+#
+#   1. Your .kube config points to a running Kubernetes cluster.
+#
+#   2. You already have Helm and Ansible installed locally.
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Create minecraft namespace.
+      community.kubernetes.k8s:
+        name: minecraft
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Add itzg chart repo.
+      community.kubernetes.helm_repository:
+        name: itzg
+        repo_url: "https://itzg.github.io/minecraft-server-charts/"
+
+    - name: Deploy Minecraft Helm chart.
+      community.kubernetes.helm:
+        name: minecraft
+        chart_ref: itzg/minecraft
+        chart_version: '2.0.9'
+        release_namespace: minecraft
+        state: present
+        values:
+          imageTag: multiarch
+          minecraftServer:
+            eula: true
+            Difficulty: easy
+            motd: "Welcome to Minecraft running on Casey's Pie!"
+            serviceType: LoadBalancer
+          persistence:
+            dataDir:
+              # Set this to true so we can persist state between restarts
+              enabled: true
+              Size: 2Gi
